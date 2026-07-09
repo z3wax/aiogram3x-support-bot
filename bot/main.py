@@ -16,8 +16,8 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import database as db
 
 
-TOKEN = "8793598575:AAF7AANvbBuBFQkAlB2mav1Aw-QpuvFJJ70"
-SUPERADMIN_ID = [7925720227]
+TOKEN = "YOUR_BOT_TOKEN"
+SUPERADMIN_ID = ["YOUR_TG_ID_TYPE_INT"]
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
