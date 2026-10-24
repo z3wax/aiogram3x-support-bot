@@ -1,0 +1,63 @@
+name: Documentation
+
+on:
+  push:
+    paths:
+      - 'README.md'
+      - 'ROADMAP.md'
+      - 'CHANGELOG.md'
+      - 'docs/**'
+      - '.github/workflows/documentation.yml'
+  pull_request:
+    paths:
+      - 'README.md'
+      - 'ROADMAP.md'
+      - 'CHANGELOG.md'
+      - 'docs/**'
+      - '.github/workflows/documentation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  presentation:
+    name: Documentation files and local links
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check presentation documents and SVG assets
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, urllib.parse, xml.etree.ElementTree as ET
+          root = pathlib.Path.cwd()
+          paths = ['docs/brand/banner.svg', 'docs/brand/icon.svg', 'docs/PROJECT_GUIDE.md', 'ROADMAP.md', 'docs/EVALUATION.md', 'docs/RELEASING.md', 'CHANGELOG.md', 'docs/REPOSITORY_SETTINGS.md']
+          errors = []
+          for name in paths:
+              p = root / name
+              if not p.is_file() or not p.read_text(encoding='utf-8').strip():
+                  errors.append(f'Missing or empty: {name}')
+                  continue
+              text = p.read_text(encoding='utf-8')
+              if p.suffix == '.svg':
+                  ET.fromstring(text)
+              if p.suffix == '.md':
+                  if sum(line.startswith('```') for line in text.splitlines()) % 2:
+                      errors.append(f'Unclosed code fence: {name}')
+                  for target in re.findall(r'!?\[[^\]]*\]\(([^)]+)\)', text):
+                      url = urllib.parse.urlsplit(target)
+                      if url.scheme or url.netloc or not url.path:
+                          continue
+                      if not (p.parent / urllib.parse.unquote(url.path)).exists():
+                          errors.append(f'Broken local link in {name}: {target}')
+          readme = (root / 'README.md').read_text(encoding='utf-8')
+          assert '<!-- z3wax:presentation:start -->' in readme
+          assert '<!-- z3wax:presentation:end -->' in readme
+          if errors:
+              raise SystemExit('\n'.join(errors))
+          print(f'Presentation suite: {len(paths)} files checked. Application tests are separate.')
+          PY

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 0 1200 340" role="img" aria-labelledby="title desc">
+<title id="title">Support Bot</title><desc id="desc">Murojaatdan javobgacha — Telegram ichida.</desc>
+<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#0c1217"/><stop offset="1" stop-color="#15222a"/></linearGradient><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-opacity=".035"/></pattern><linearGradient id="accent"><stop stop-color="#9af4ce"/><stop offset="1" stop-color="#65cde0"/></linearGradient></defs>
+<rect width="1200" height="340" rx="20" fill="url(#bg)"/><rect width="1200" height="340" rx="20" fill="url(#grid)"/>
+<rect x="48" y="52" width="5" height="236" rx="2" fill="url(#accent)"/>
+<g font-family="Inter,Segoe UI,Arial,sans-serif"><text x="80" y="79" fill="#9af4ce" font-size="13" font-weight="700" letter-spacing="2.5">TELEGRAM / CUSTOMER SUPPORT</text>
+<text x="78" y="161" fill="#f3f7f8" font-size="62" font-weight="750" letter-spacing="-2">Support Bot</text>
+<text x="80" y="206" fill="#b1c0c8" font-size="21">Murojaatdan javobgacha — Telegram ichida.</text>
+<text x="80" y="273" fill="#8098a6" font-size="15">Python · aiogram · SQLite</text>
+<text x="1120" y="79" fill="#b1c0c8" font-size="14" font-weight="600" text-anchor="end">Z3WAX</text></g>
+<g transform="translate(1005 210)" fill="none" stroke="url(#accent)" stroke-width="2" opacity=".6"><path d="M0 20 45 0 90 20 45 40Z M0 40 45 60 90 40 M0 60 45 80 90 60"/></g>
+</svg>

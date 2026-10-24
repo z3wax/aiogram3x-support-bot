@@ -1,3 +1,15 @@
+<!-- z3wax:presentation:start -->
+![Support Bot](docs/brand/banner.svg)
+
+[Loyiha xaritasi va misol](docs/PROJECT_GUIDE.md) · [Roadmap](ROADMAP.md) · [Baholash](docs/EVALUATION.md) · [Changelog](CHANGELOG.md) · [Relizlar](docs/RELEASING.md)
+
+[![Documentation](https://github.com/z3wax/aiogram3x-support-bot/actions/workflows/documentation.yml/badge.svg)](https://github.com/z3wax/aiogram3x-support-bot/actions/workflows/documentation.yml)
+
+**Tekshiruvlar:** [Documentation workflow](https://github.com/z3wax/aiogram3x-support-bot/actions/workflows/documentation.yml)
+
+Hujjatlar CI holati dastur yoki model testlari holatidan alohida.
+<!-- z3wax:presentation:end -->
+
 # Aiogram Support Bot
 
 Telegram orqali mijoz murojaatlarini qabul qilish va operatorlar bilan suhbatni boshqarish uchun Python bot.
