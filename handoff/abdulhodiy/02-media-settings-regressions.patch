@@ -1,0 +1,150 @@
+From 5299f345a4c87d0a9dffbd04e526256cbb45077d Mon Sep 17 00:00:00 2001
+From: Abu <278924928+z3wax@users.noreply.github.com>
+Date: Wed, 28 Oct 2026 09:22:17 +0000
+Subject: [PATCH] Test environment settings and fix setup documentation
+
+---
+ README.md              | 13 ++++--
+ tests/test_settings.py | 95 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 105 insertions(+), 3 deletions(-)
+ create mode 100644 tests/test_settings.py
+
+diff --git a/README.md b/README.md
+index 42119b2..c2ec1dd 100644
+--- a/README.md
++++ b/README.md
+@@ -29,7 +29,7 @@ Foydalanuvchilar **video blog** va **rasm shaklidagi postlar** joylashi, izohlas
+ 
+ - **Frontend**: HTML, CSS (Dark Mode dizayn), JavaScript  
+ - **Backend**: Python (Django)
+-- **Ma’lumotlar bazasi**: SQLite (hozircha!)
++- **Ma’lumotlar bazasi**: PostgreSQL
+ - **Video Player**: HTML5 video player integratsiyasi  
+ 
+ ---
+@@ -38,8 +38,9 @@ Foydalanuvchilar **video blog** va **rasm shaklidagi postlar** joylashi, izohlas
+ 
+ 1. Loyihani klon qiling:
+    ```bash
+-   https://github.com/ABDULHODIY1/Media-with-django.git
+-   cd pid
++   git clone https://github.com/ABDULHODIY1/Media-with-django.git
++   cd Media-with-django
++   ```
+ 
+ ## ⚙️ Muhit o‘zgaruvchilari (environment variables)
+ 
+@@ -58,3 +59,9 @@ Yangi maxfiy kalit yaratish:
+ ```bash
+ python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+ ```
++
++Muhit sozlamalari testlarini PostgreSQL serveriga ulanmasdan ishga tushirish:
++```bash
++python -m pip install Django==5.2.4
++python -m unittest discover -s tests -v
++```
+diff --git a/tests/test_settings.py b/tests/test_settings.py
+new file mode 100644
+index 0000000..da1aa97
+--- /dev/null
++++ b/tests/test_settings.py
+@@ -0,0 +1,95 @@
++"""Check environment configuration without starting Django or connecting to a DB."""
++
++import os
++from pathlib import Path
++import runpy
++import unittest
++from unittest.mock import patch
++
++from django.core.exceptions import ImproperlyConfigured
++
++
++SETTINGS_PATH = Path(__file__).resolve().parents[1] / "config" / "settings.py"
++TEST_SECRET = "test-only-secret-for-settings-checks"
++
++
++def load_settings(**environment):
++    # Host machine variables must not change which startup path a test checks.
++    with patch.dict(os.environ, environment, clear=True):
++        return runpy.run_path(str(SETTINGS_PATH))
++
++
++class SettingsEnvironmentTests(unittest.TestCase):
++    def test_local_defaults_remain_available(self):
++        settings = load_settings()
++        self.assertIs(settings["DEBUG"], True)
++        self.assertTrue(settings["SECRET_KEY"])
++        self.assertEqual(settings["ALLOWED_HOSTS"], ["*"])
++        self.assertEqual(settings["CSRF_TRUSTED_ORIGINS"], [])
++        self.assertEqual(settings["DATABASES"]["default"]["HOST"], "127.0.0.1")
++
++    def test_production_rejects_missing_or_empty_secret(self):
++        for debug in ("false", "0", "no", "off", " FALSE "):
++            for secret in (None, ""):
++                with self.subTest(debug=debug, secret=secret):
++                    environment = {"DJANGO_DEBUG": debug}
++                    if secret is not None:
++                        environment["DJANGO_SECRET_KEY"] = secret
++                    with self.assertRaisesRegex(ImproperlyConfigured, "DJANGO_SECRET_KEY"):
++                        load_settings(**environment)
++
++    def test_production_keeps_configured_secret_and_limits_default_hosts(self):
++        settings = load_settings(DJANGO_DEBUG="false", DJANGO_SECRET_KEY=TEST_SECRET)
++        self.assertIs(settings["DEBUG"], False)
++        self.assertEqual(settings["SECRET_KEY"], TEST_SECRET)
++        self.assertEqual(settings["ALLOWED_HOSTS"], ["localhost", "127.0.0.1"])
++
++    def test_true_values_keep_development_mode(self):
++        for debug in ("1", "true", "yes", "on", " TRUE "):
++            with self.subTest(debug=debug):
++                self.assertIs(load_settings(DJANGO_DEBUG=debug)["DEBUG"], True)
++
++    def test_host_and_origin_lists_strip_whitespace_and_empty_items(self):
++        settings = load_settings(
++            DJANGO_DEBUG="false",
++            DJANGO_SECRET_KEY=TEST_SECRET,
++            DJANGO_ALLOWED_HOSTS=" example.com, ,www.example.com, ",
++            DJANGO_CSRF_TRUSTED_ORIGINS=" https://example.com, ,https://www.example.com, ",
++        )
++        self.assertEqual(settings["ALLOWED_HOSTS"], ["example.com", "www.example.com"])
++        self.assertEqual(
++            settings["CSRF_TRUSTED_ORIGINS"],
++            ["https://example.com", "https://www.example.com"],
++        )
++
++    def test_explicit_empty_lists_do_not_fall_back_to_wildcard(self):
++        settings = load_settings(DJANGO_ALLOWED_HOSTS=" , ", DJANGO_CSRF_TRUSTED_ORIGINS="")
++        self.assertEqual(settings["ALLOWED_HOSTS"], [])
++        self.assertEqual(settings["CSRF_TRUSTED_ORIGINS"], [])
++
++    def test_database_connection_uses_all_environment_overrides(self):
++        settings = load_settings(
++            POSTGRES_DB="test_database",
++            POSTGRES_USER="test_user",
++            POSTGRES_PASSWORD="test-only-password",
++            POSTGRES_HOST="database.internal",
++            POSTGRES_PORT="6543",
++        )
++        self.assertEqual(
++            settings["DATABASES"]["default"],
++            {
++                "ENGINE": "django.db.backends.postgresql",
++                "NAME": "test_database",
++                "USER": "test_user",
++                "PASSWORD": "test-only-password",
++                "HOST": "database.internal",
++                "PORT": "6543",
++            },
++        )
++
++    def test_explicit_secret_is_kept_in_development(self):
++        self.assertEqual(load_settings(DJANGO_SECRET_KEY=TEST_SECRET)["SECRET_KEY"], TEST_SECRET)
++
++
++if __name__ == "__main__":
++    unittest.main()
+-- 
+2.52.0
+

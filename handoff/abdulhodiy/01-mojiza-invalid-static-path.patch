@@ -1,0 +1,75 @@
+From 9b86d44de3e17dcbbd5a6b3bff79d9b8abcd2543 Mon Sep 17 00:00:00 2001
+From: Abu <278924928+z3wax@users.noreply.github.com>
+Date: Wed, 28 Oct 2026 09:24:16 +0000
+Subject: [PATCH] Reject NUL bytes in both static file handlers
+
+---
+ MOJIZA/engine/routing.py    |  7 +++++--
+ tests/test_static_routes.py | 20 ++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/MOJIZA/engine/routing.py b/MOJIZA/engine/routing.py
+index 81d17d2..9d91abe 100644
+--- a/MOJIZA/engine/routing.py
++++ b/MOJIZA/engine/routing.py
+@@ -98,9 +98,12 @@ def load_app_routes(project_root):
+ def resolve_static_path(static_folder, rel_path):
+     """Return the absolute path of ``rel_path`` inside ``static_folder``.
+ 
+-    Returns None when the resolved path (after following ``..`` segments and
+-    symlinks) would leave ``static_folder``.
++    Returns None for paths containing a null byte or when the resolved path
++    (after following ``..`` segments and symlinks) would leave ``static_folder``.
+     """
++    if "\x00" in rel_path:
++        return None
++
+     root = os.path.realpath(static_folder)
+     candidate = os.path.realpath(os.path.join(root, rel_path))
+     if os.path.commonpath([root, candidate]) != root:
+diff --git a/tests/test_static_routes.py b/tests/test_static_routes.py
+index a6deadd..df07fe4 100644
+--- a/tests/test_static_routes.py
++++ b/tests/test_static_routes.py
+@@ -1,11 +1,13 @@
+ import http.client
+ import threading
+ from http.server import HTTPServer
++from types import SimpleNamespace
+ 
+ import pytest
+ 
+ from MOJIZA.engine.routing import Router, add_static_routes, resolve_static_path
+ import MOJIZA.engine.routing as routing
++from MOJIZA.static.make_static import serve_static_file
+ 
+ 
+ @pytest.fixture
+@@ -57,6 +59,24 @@ def test_blocks_path_traversal(static_server, path):
+     assert b"TOP-SECRET" not in body
+ 
+ 
++@pytest.mark.parametrize("path", ["/static/logo.png%00", "/static/%00logo.png"])
++def test_blocks_null_byte_paths(static_server, path):
++    status, _, body = static_server(path)
++    assert status == 403
++    assert body == b"Forbidden"
++
++
++@pytest.mark.parametrize("path", ["/static/logo.png%00", "/static/%00logo.png"])
++def test_legacy_static_handler_blocks_null_byte_paths(tmp_path, monkeypatch, path):
++    (tmp_path / "STATIC").mkdir()
++    (tmp_path / "STATIC" / "logo.png").write_bytes(b"png-bytes")
++    monkeypatch.chdir(tmp_path)
++
++    assert serve_static_file(SimpleNamespace(path=path)) == (
++        403, "text/plain", b"Forbidden"
++    )
++
++
+ def test_missing_file_and_directory(static_server):
+     assert static_server("/static/nope.png")[0] == 404
+     assert static_server("/static/css")[0] == 403
+-- 
+2.52.0
+
