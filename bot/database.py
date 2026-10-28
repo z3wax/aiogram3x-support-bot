@@ -3,9 +3,14 @@ import logging
 from datetime import datetime
 
 DB_NAME = "luxraqamlar.db"
+# Older databases append migrated columns in a different physical order.
+# Handlers consume user tuples by index, so always project the current order.
+USER_COLUMNS = "user_id, username, full_name, role, is_banned, is_online, permissions, rating_score, rating_count, phone"
 
 async def init_db():
     async with aiosqlite.connect(DB_NAME) as db:
+        # Keep schema inspection and changes together, including concurrent starts.
+        await db.execute("BEGIN IMMEDIATE")
         # Users table
         await db.execute('''
             CREATE TABLE IF NOT EXISTS users (
@@ -21,12 +26,6 @@ async def init_db():
                 phone TEXT DEFAULT NULL
             )
         ''')
-        
-        # Backward compatibility for phone column
-        try:
-            await db.execute('ALTER TABLE users ADD COLUMN phone TEXT DEFAULT NULL')
-        except:
-            pass
         
         # Tickets table
         await db.execute('''
@@ -102,15 +101,26 @@ async def init_db():
         # Default settings
         await db.execute('INSERT OR IGNORE INTO bot_settings (key, value) VALUES ("welcome_msg", "Assalomu alaykum! luxRaqamlar support botiga xush kelibsiz. Savolingizni yozib qoldiring.")')
         
-        # Migrations (if fields don't exist in existing db)
-        try:
-            await db.execute('ALTER TABLE users ADD COLUMN is_banned BOOLEAN DEFAULT 0')
-            await db.execute('ALTER TABLE users ADD COLUMN is_online BOOLEAN DEFAULT 1')
-            await db.execute('ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT "all"')
-            await db.execute('ALTER TABLE tickets ADD COLUMN closed_at TIMESTAMP')
-        except:
-            pass # Already exists
-            
+        # Check every column independently: an existing early column must not
+        # prevent later migrations, or hide unrelated SQLite failures.
+        migrations = {
+            "users": (
+                ("is_banned", "BOOLEAN DEFAULT 0"),
+                ("is_online", "BOOLEAN DEFAULT 1"),
+                ("permissions", "TEXT DEFAULT 'all'"),
+                ("rating_score", "INTEGER DEFAULT 0"),
+                ("rating_count", "INTEGER DEFAULT 0"),
+                ("phone", "TEXT DEFAULT NULL"),
+            ),
+            "tickets": (("closed_at", "TIMESTAMP"),),
+        }
+        for table, columns in migrations.items():
+            async with db.execute(f"PRAGMA table_info({table})") as cursor:
+                existing = {row[1] for row in await cursor.fetchall()}
+            for column, definition in columns:
+                if column not in existing:
+                    await db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
         await db.commit()
         logging.info("Database initialized with CRM features.")
 
@@ -140,7 +150,7 @@ async def add_user(user_id: int, username: str, full_name: str, role: str = 'cli
 
 async def get_user(user_id: int):
     async with aiosqlite.connect(DB_NAME) as db:
-        async with db.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)) as cursor:
+        async with db.execute(f'SELECT {USER_COLUMNS} FROM users WHERE user_id = ?', (user_id,)) as cursor:
             return await cursor.fetchone()
 
 # Operator status toggles
@@ -156,7 +166,7 @@ async def toggle_ban(user_id: int, is_banned: bool):
 
 async def get_operators(online_only=False):
     async with aiosqlite.connect(DB_NAME) as db:
-        query = 'SELECT * FROM users WHERE role IN ("operator", "superadmin")'
+        query = f'SELECT {USER_COLUMNS} FROM users WHERE role IN ("operator", "superadmin")'
         if online_only:
             query += ' AND is_online = 1'
         async with db.execute(query) as cursor:
