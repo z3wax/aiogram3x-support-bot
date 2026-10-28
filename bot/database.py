@@ -170,15 +170,16 @@ async def create_ticket(client_id: int):
 
 async def take_ticket(ticket_id: int, operator_id: int):
     async with aiosqlite.connect(DB_NAME) as db:
-        # Check if already taken
-        async with db.execute('SELECT status FROM tickets WHERE id = ?', (ticket_id,)) as cursor:
-            row = await cursor.fetchone()
-            if row and row[0] != 'open':
-                return False
-                
-        await db.execute('UPDATE tickets SET operator_id = ?, status = "in_progress" WHERE id = ?', (operator_id, ticket_id))
+        # Claim in one statement so concurrent operators cannot overwrite each
+        # other after both observing an open ticket. Missing tickets also fail.
+        cursor = await db.execute(
+            'UPDATE tickets SET operator_id = ?, status = "in_progress" WHERE id = ? AND status = "open"',
+            (operator_id, ticket_id)
+        )
+        claimed = cursor.rowcount == 1
+        await cursor.close()
         await db.commit()
-        return True
+        return claimed
 
 async def close_ticket(ticket_id: int):
     async with aiosqlite.connect(DB_NAME) as db:

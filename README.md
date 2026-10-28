@@ -55,7 +55,13 @@ Windows PowerShell uchun aktivlashtirish: `.venv\Scripts\Activate.ps1`.
 3. Reyting, arxiv va PDF eksportini tekshiring.
 4. Qayta ishga tushirganda baza saqlanishini tekshiring.
 
-Bog'liqliklarda versiya oralig'i keng: `ButtonStyle` kabi ishlatilgan API'lar o'rnatilgan aiogram versiyasida mavjudligini tekshiring. PDF eksporti matnni Latin-1 ga almashtiradi; barcha o'zbekcha belgilar bir xil chiqmasligi mumkin. Avtomatlashtirilgan testlar to'plami bu repozitoriyda ko'zda tutilmagan.
+Bog'liqliklarda versiya oralig'i keng: `ButtonStyle` kabi ishlatilgan API'lar o'rnatilgan aiogram versiyasida mavjudligini tekshiring. PDF eksporti matnni Latin-1 ga almashtiradi; barcha o'zbekcha belgilar bir xil chiqmasligi mumkin. SQLite ticket qabul qilish regressiyalari Telegram tokenisiz tekshiriladi:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Testlar bir murojaatni parallel qabul qilishda faqat bitta operator muvaffaqiyat olishini, yopilgan/olingan va mavjud bo'lmagan ticket qabul qilinmasligini tekshiradi. Telegram mijoz → operator → yopish oqimi yuqoridagi alohida test botida qo'shimcha tekshiriladi.
 
 ## Hissa qo'shish
 
